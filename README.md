@@ -1,76 +1,189 @@
-# Web Scraper Pro
+# 🐐 ScrapeGoat
 
-Written in python and utilizing Tkinter for the GUI. 
-Web Scraper Pro is a feature rich tool that offers BeautifulSoup and Selenium as the scraping methods.
- 
-BeautifulSoup is suitable for users who only need to scrape static HTML content from websites.
+> **Web data extraction terminal. Three engines. Full session control. Zero framework overhead.**
 
-Selenium is the better choice for Scraping Dynamically Loaded Content from websites that load content using JavaScript. 
+ScrapeGoat is a full-stack web scraper with a tech-noir terminal UI. The frontend is a single self-contained HTML file. The backend is a pure Python server implementing six scraping classes — from fast TLS-fingerprinted HTTP requests to full Playwright Chromium browser automation — with built-in session management, proxy rotation, and domain blocking.
 
-## Prerequisites
+No framework. No build step. One command to run.
 
-Web Scraper Pro should run on most Windows machines with very few dependencies. 
+---
 
-## Easy Installation
+## Engines
 
-* Download the Web Scraper Pro code and execute on your favorite IDE.
+| Engine | Class | Best For |
+|---|---|---|
+| **Fetcher** | `Fetcher` / `FetcherSession` | Static pages — fast HTTP with browser TLS fingerprint |
+| **Stealth** | `StealthyFetcher` / `StealthySession` | Bot-protected pages — header rotation, timing jitter, IP spoofing |
+| **Dynamic** | `DynamicFetcher` / `DynamicSession` | JS-rendered SPAs — full headless Chromium via Playwright |
 
-* Paste or type in the URL.
-* Select the Scraping Method.
-* Select the Output Format.
-* Optional - choose nested tags - OR
-* Find Elements AND enetering an expression manually.
-* Click on the "Scrape Data" button to start the Web Scraper Pro process.
-* Web Scraper Pro will perform scraping based on the criteria you select.
-* An Explorer Window will open, select a directory and name your file to save.
-* A prompt will indicate 'Data Saved Successfully.'
+---
 
-## Key Features:
-* Custom Expression Input: The GUI includes a drop-down menu, and text box that allows users to manually input a Selenium expression.
-* Custom Scraping Logic: If the user inputs a custom expression, the application will use it for scraping via the selected method.
-* Unique Functionality: The code supports scraping using predefined tags with BeautifulSoup and Selenium, along with the ability to save the scraped data in various formats.
-* Nested Tags Selection: Checkboxes for common HTML tags to enable or disable scraping of these nested tags.
-* Dynamic Data Extraction: The application dynamically extracts text from only the tags selected by the user.
-* Selection of Nested Tags allows users to customize their scraping to include or exclude specific types of content, making the tool more flexible and user-friendly.
+## Quick Start
 
-## Example Selenium Expression:
-    By ID
-* driver.find_element(By.ID, "element_id")
+### Prerequisites
 
-## Exporting Data:
- - CSV: Using Python's built-in csv module.
- - Excel: Using openpyxl or pandas.
- - SQL: Using sqlite3 or any other SQL database libraries.
- - JSON: Using Python's built-in json module.
+- Python 3.10+
+- pip
 
-## Source Modules & Packages
+### Run
 
-* tkinter
-* BeautifulSoup
-* selenium
-* requests
-* csv
-* json
-* pandas
-* sqlite3
+```bash
+# Clone or unzip the project
+cd scrapegoat/
 
-## Dependencies
+# macOS / Linux
+bash start.sh
 
-* Python 3.10
-* Beautiful Soup
-    - requests
-    - urllib
-* Selenium
-    - Install Chrome.
-    - Download and install the chromedriver.
+# Windows
+start.bat
+```
 
-* Update the path in the code to point to chromedriver.exe
-* NOTE - this path may differ on your machine and OS.
+Open **[http://localhost:7331](http://localhost:7331)** in your browser.
 
-## Specify the path to the ChromeDriver executable
-    - service = Service(executable_path="C:\\webdrivers\\chromedriver.exe")
+That's it. `start.sh` installs all dependencies, installs the Playwright Chromium binary, and starts the server in one step.
 
-Built with python and Tkinter GUI library.
+### Manual Start
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+python3 server.py
+```
+
+---
+
+## Features
+
+### Fetching
+
+- **TLS fingerprint impersonation** — 5 browser profiles (Chrome/Win, Chrome/Mac, Firefox, Safari, Edge) with exact Sec-CH-UA, Sec-Fetch-\*, Accept headers
+- **Dynamic loading** — Playwright Chromium with stealth JS injection (removes `navigator.webdriver`, spoofs plugins, platform, permissions)
+- **Anti-bot stealth** — per-request UA rotation, randomised header insertion order, timing jitter (0–400ms), spoofed X-Forwarded-For / X-Real-IP headers
+
+### Sessions
+
+- **Persistent cookies** — HTTP sessions use `http.cookiejar.CookieJar`; Playwright sessions save/restore `context.cookies()` across requests
+- **Named sessions** — create a session ID in the UI; all requests with that ID share the same cookie state
+- **Session inspection** — sidebar shows active sessions; click any to reuse, or clear individually or all at once
+
+### Proxies
+
+- **Proxy rotation** — `ProxyRotator` with cyclic and random strategies
+- **Per-request override** — bypass the rotator for a single request
+- **Live management** — add/remove proxies from the UI without restarting the server
+- **All fetcher types** — proxy support on Fetcher, StealthyFetcher, and DynamicFetcher
+
+### Domain Blocking
+
+- **HTTP fetchers** — domain check runs before any request leaves the process
+- **Playwright** — blocked at the network level via `page.route()` abort
+- **Subdomain matching** — blocking `example.com` also blocks all subdomains
+
+### Extraction
+
+- **Tag targeting** — `<p>`, `<h1>`, `<h2>`, `<div>`, `<a>`, `.class`, `#id`, `<td>`, `<tr>`
+- **Custom selectors** — `By.CLASS_NAME`, `By.CSS_SELECTOR`, `By.ID`, `By.LINK_TEXT`, `By.NAME`, `By.PARTIAL_LINK_TEXT`, `By.TAG_NAME`
+- **Smart deduplication** — whitespace normalisation + set deduplication before returning
+- **Script/style stripping** — `<script>` and `<style>` removed before extraction
+
+### Export
+
+| Format | Description |
+|---|---|
+| CSV | Header + one quoted value per row |
+| JSON | Pretty-printed array |
+| XLSX | TSV — opens natively in Excel |
+| SQL | `CREATE TABLE` + `INSERT INTO` statements |
+
+---
+
+## Usage
+
+1. Enter a **target URL** in the sidebar
+2. Select **engine** — Fetcher, Stealth, or Dynamic
+3. Choose a **browser profile** (Fetcher and Stealth only)
+4. Check **tags** to extract
+5. Optionally set a **custom selector** with a `By.*` method
+6. Optionally set a **Session ID** for persistent cookies
+7. Add **proxies** and choose rotation strategy if needed
+8. Add **blocked domains** to suppress tracking or ad calls
+9. Hit **EXECUTE** — watch the terminal stream the scrape log
+10. Switch to **RAW DATA** tab to browse results
+11. Select export format and click **DOWNLOAD**
+
+---
+
+## Project Structure
+
+```
+scrapegoat/
+├── scrapegoat.html      ← Full frontend (HTML + CSS + JS, no build step)
+├── server.py            ← Backend engine (stdlib + bs4 + playwright)
+├── requirements.txt     ← Python dependencies
+├── start.sh             ← macOS / Linux launcher
+├── start.bat            ← Windows launcher
+├── README.md            ← This file
+├── deployment-guide.md  ← File placement, deployment procedures, API reference
+└── tech-stack.md        ← Architecture, class map, technology decisions
+```
+
+> `scrapegoat.html` and `server.py` must live in the same directory.
+
+---
+
+## API
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | Serves `scrapegoat.html` |
+| GET | `/api/health` | Health check |
+| GET | `/api/profiles` | Lists browser fingerprint profiles |
+| GET | `/api/sessions` | Lists active session IDs |
+| POST | `/api/scrape` | Executes a scrape |
+| POST | `/api/proxies` | Updates the proxy rotator pool |
+| POST | `/api/sessions/clear` | Clears one or all sessions |
+
+Full schemas in [`deployment-guide.md`](./deployment-guide.md).
+
+---
+
+## Configuration
+
+All settings are constants in `server.py`. No `.env` file required.
+
+| Setting | Default | Edit |
+|---|---|---|
+| Port | `7331` | `PORT = 7331` |
+| Frontend path | `./scrapegoat.html` | `FRONTEND_PATH` constant |
+| HTTP request timeout | `20s` | `Fetcher.__init__` default arg |
+| Playwright timeout | `30s` | `DynamicFetcher.__init__` default arg |
+| Stealth jitter | `400ms` max | `StealthyFetcher.__init__` default arg |
+| Headless mode | `True` | `DynamicFetcher(headless=False)` |
+
+---
+
+## Limitations
+
+- No HTTP/3 — Python `urllib` uses HTTP/1.1. Integrate `curl-cffi` for full HTTP/3 + TLS fingerprinting
+- XPATH selectors not supported — use `By.CSS_SELECTOR` instead
+- In-memory sessions only — state is lost on server restart
+- Single process — Playwright scrapes block one thread each
+
+---
+
+## Roadmap
+
+- [ ] `curl-cffi` for HTTP/2 + HTTP/3 TLS fingerprinting
+- [ ] Persistent session storage (SQLite)
+- [ ] Pagination and recursive crawl
+- [ ] Scheduled jobs
+- [ ] Captcha solver integration
+
+---
+
+## License
+
+MIT — use it, fork it, scrape responsibly.
 
 Authors
 
