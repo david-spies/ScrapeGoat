@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ScrapeGoat</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syncopate:wght@400;700&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --black: #080a0f;
+    --dark: #0d1117;
+    --panel: #111820;
+    --panel2: #141c26;
+    --border: #1e2d3d;
+    --slate: #2a3f5a;
+    --slate-light: #3d5a80;
+    --green: #39d353;
+    --green-dim: #1a6b28;
+    --green-glow: rgba(57,211,83,0.18);
+    --white: #e8eaf0;
+    --gray: #8899aa;
+    --gray-dim: #445566;
+    --accent: #00ffa3;
+    --red: #ff2d55;
+    --amber: #ffb800;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Barlow Condensed', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: -50%;
+    width: 200%;
+    height: 200%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.022;
+    pointer-events: none;
+    z-index: 9998;
+    animation: noiseShift 0.4s steps(1) infinite;
+  }
+  @keyframes noiseShift {
+    0%   { transform: translate(0,0); }
+    25%  { transform: translate(-2%,-3%); }
+    50%  { transform: translate(3%,1%); }
+    75%  { transform: translate(-1%,4%); }
+    100% { transform: translate(2%,-1%); }
+  }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px; height: 56px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,10,15,0.95);
+    position: sticky; top: 0; z-index: 100;
+    backdrop-filter: blur(8px);
+  }
+  .logo-wrap { display: flex; align-items: center; gap: 12px; }
+  .logo-icon { width: 32px; height: 32px; }
+  .logo-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 0 6px var(--green)); }
+  .logo-text {
+    font-family: 'Syncopate', sans-serif; font-weight: 700;
+    font-size: 1.1rem; letter-spacing: 0.18em; color: var(--white); position: relative;
+  }
+  .logo-text::after {
+    content: 'ScrapeGoat'; position: absolute; left: 2px; top: 0;
+    color: var(--green); clip-path: polygon(0 30%, 100% 30%, 100% 50%, 0 50%);
+    opacity: 0; animation: logoGlitch 6s infinite;
+  }
+  @keyframes logoGlitch {
+    0%, 92%, 100% { opacity: 0; transform: translateX(0); }
+    93%  { opacity: 0.8; transform: translateX(-3px); }
+    94%  { opacity: 0.8; transform: translateX(3px); }
+    95%  { opacity: 0; }
+    96%  { opacity: 0.6; transform: translateX(-2px); }
+    97%  { opacity: 0; }
+  }
+  .version-tag {
+    font-family: 'Share Tech Mono', monospace; font-size: 0.62rem;
+    color: var(--green); border: 1px solid var(--green-dim);
+    padding: 2px 7px; letter-spacing: 0.1em; background: var(--green-glow);
+  }
+  .topbar-status {
+    display: flex; align-items: center; gap: 20px;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; color: var(--gray);
+  }
+  .status-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s ease-in-out infinite;
+    display: inline-block; margin-right: 6px;
+  }
+  .status-dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--green); }
+    50% { opacity: 0.5; box-shadow: 0 0 3px var(--green); }
+  }
+  .app-shell {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    min-height: calc(100vh - 56px);
+  }
+  .sidebar {
+    border-right: 1px solid var(--border);
+    background: var(--dark);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+  }
+  .sidebar-section {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-label {
+    font-family: 'Share Tech Mono', monospace; font-size: 0.6rem;
+    color: var(--gray-dim); letter-spacing: 0.2em; text-transform: uppercase;
+    margin-bottom: 14px; padding-top: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::before { content: '//'; color: var(--green-dim); }
+  .url-input-wrap { position: relative; }
+  .url-input-wrap .prefix {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    font-family: 'Share Tech Mono', monospace; font-size: 0.72rem;
+    color: var(--green); pointer-events: none;
+  }
+  input[type="text"], select, textarea {
+    width: 100%; background: var(--panel); border: 1px solid var(--border);
+    color: var(--white); font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem; padding: 10px 12px; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none; -webkit-appearance: none;
+  }
+  input[type="text"]:focus, select:focus, textarea:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 2px var(--green-glow), inset 0 0 12px rgba(57,211,83,0.04);
+  }
+  .url-input { padding-left: 36px !important; }
+  .toggle-group { display: flex; border: 1px solid var(--border); overflow: hidden; }
+  .toggle-group label {
+    flex: 1; text-align: center; padding: 8px 4px;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.65rem;
+    color: var(--gray); cursor: pointer; transition: all 0.15s;
+    border-right: 1px solid var(--border); letter-spacing: 0.05em;
+  }
+  .toggle-group label:last-child { border-right: none; }
+  .toggle-group input[type="radio"] { display: none; }
+  .toggle-group input[type="radio"]:checked + label {
+    background: var(--green-glow); color: var(--green);
+    border-color: var(--green-dim); text-shadow: 0 0 8px var(--green);
+  }
+  .tags-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tag-check {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 6px 8px; border: 1px solid transparent;
+    transition: all 0.15s; font-size: 0.78rem; color: var(--gray);
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .tag-check:hover { border-color: var(--border); color: var(--white); background: var(--panel); }
+  .tag-check input[type="checkbox"] { display: none; }
+  .check-box { width: 14px; height: 14px; border: 1px solid var(--gray-dim); flex-shrink: 0; position: relative; transition: all 0.15s; }
+  .tag-check input:checked ~ .check-box { border-color: var(--green); background: var(--green-glow); }
+  .tag-check input:checked ~ .check-box::after { content: ''; position: absolute; inset: 2px; background: var(--green); }
+  .tag-check input:checked ~ span { color: var(--green); }
+  .select-wrap { position: relative; }
+  .select-wrap::after { content: '▾'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--green); pointer-events: none; font-size: 0.8rem; }
+  select option { background: var(--panel); color: var(--white); }
+  .small-label {
+    font-family: 'Share Tech Mono', monospace; font-size: 0.58rem;
+    color: var(--gray-dim); letter-spacing: 0.1em; margin-bottom: 6px; display: block;
+  }
+  .input-row { display: flex; gap: 6px; }
+  .input-row input { flex: 1; }
+  .mini-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--gray); font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem; padding: 0 10px; cursor: pointer;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .mini-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-glow); }
+  .mini-btn.danger:hover { border-color: var(--red); color: var(--red); background: rgba(255,45,85,0.12); }
+  .proxy-list {
+    max-height: 80px; overflow-y: auto;
+    border: 1px solid var(--border); background: var(--panel);
+    margin-top: 6px; padding: 4px 8px;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.62rem; color: var(--gray-dim);
+  }
+  .proxy-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 0; border-bottom: 1px solid rgba(30,45,61,0.5);
+  }
+  .proxy-item:last-child { border-bottom: none; }
+  .proxy-remove { cursor: pointer; color: var(--red); font-size: 0.7rem; }
+  .badge {
+    display: inline-block; font-family: 'Share Tech Mono', monospace;
+    font-size: 0.58rem; padding: 1px 6px; border: 1px solid;
+    letter-spacing: 0.08em;
+  }
+  .badge-green { color: var(--green); border-color: var(--green-dim); background: var(--green-glow); }
+  .badge-amber { color: var(--amber); border-color: rgba(255,184,0,0.3); background: rgba(255,184,0,0.08); }
+  .badge-red   { color: var(--red); border-color: rgba(255,45,85,0.3); background: rgba(255,45,85,0.08); }
+  .badge-slate { color: var(--gray); border-color: var(--slate); background: rgba(42,63,90,0.2); }
+
+  /* MAIN PANEL */
+  .main-panel {
+    display: flex; flex-direction: column;
+    background: var(--black); position: relative; overflow: hidden;
+  }
+  .main-panel::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(57,211,83,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(57,211,83,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+  .main-controls {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap; position: relative; z-index: 1;
+  }
+  .expr-wrap { display: flex; flex: 1; gap: 0; min-width: 300px; }
+  .expr-prefix {
+    background: var(--panel2); border: 1px solid var(--border); border-right: none;
+    padding: 0 12px; display: flex; align-items: center;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.65rem;
+    color: var(--green); letter-spacing: 0.05em; white-space: nowrap;
+  }
+  .expr-input { flex: 1; border-left: none !important; padding-left: 10px !important; }
+  .scrape-btn {
+    position: relative; background: transparent; border: 2px solid var(--green);
+    color: var(--green); font-family: 'Syncopate', sans-serif; font-weight: 700;
+    font-size: 0.72rem; letter-spacing: 0.22em; padding: 12px 28px; cursor: pointer;
+    overflow: hidden; transition: all 0.2s; text-transform: uppercase;
+    text-shadow: 0 0 8px var(--green);
+    box-shadow: 0 0 16px var(--green-glow), inset 0 0 16px var(--green-glow);
+    white-space: nowrap;
+  }
+  .scrape-btn::before {
+    content: ''; position: absolute; inset: 0; background: var(--green);
+    transform: translateX(-102%); transition: transform 0.3s ease; z-index: 0;
+  }
+  .scrape-btn:hover::before { transform: translateX(0); }
+  .scrape-btn:hover { color: var(--black); text-shadow: none; box-shadow: 0 0 30px var(--green), 0 0 60px var(--green-glow); }
+  .scrape-btn span { position: relative; z-index: 1; }
+  .scrape-btn.loading { pointer-events: none; animation: btnPulse 0.8s ease-in-out infinite alternate; }
+  @keyframes btnPulse {
+    from { box-shadow: 0 0 16px var(--green-glow); border-color: var(--green-dim); }
+    to   { box-shadow: 0 0 40px var(--green), 0 0 80px var(--green-glow); border-color: var(--green); }
+  }
+  .output-tabs {
+    display: flex; border-bottom: 1px solid var(--border);
+    padding: 0 28px; position: relative; z-index: 1;
+  }
+  .output-tab {
+    font-family: 'Share Tech Mono', monospace; font-size: 0.68rem;
+    letter-spacing: 0.1em; padding: 12px 16px; color: var(--gray-dim);
+    cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.15s; user-select: none;
+  }
+  .output-tab:hover { color: var(--gray); }
+  .output-tab.active { color: var(--green); border-bottom-color: var(--green); text-shadow: 0 0 8px var(--green); }
+  .terminal {
+    flex: 1; padding: 20px 28px;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.78rem;
+    line-height: 1.8; overflow-y: auto; position: relative; z-index: 1;
+    min-height: 360px; max-height: 460px;
+  }
+  .terminal-line { display: flex; gap: 12px; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .t-prompt { color: var(--green); flex-shrink: 0; }
+  .t-text   { color: var(--white); }
+  .t-dim    { color: var(--gray-dim); }
+  .t-success{ color: var(--green); }
+  .t-warn   { color: var(--amber); }
+  .t-error  { color: var(--red); }
+  .t-data   { color: #7ecfff; }
+  .t-meta   { color: var(--gray); }
+  .t-cursor { display: inline-block; width: 8px; height: 14px; background: var(--green); animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 4px; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  .results-panel { padding: 16px 28px; border-top: 1px solid var(--border); position: relative; z-index: 1; }
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .results-title { font-family: 'Syncopate', sans-serif; font-size: 0.65rem; letter-spacing: 0.2em; color: var(--gray); }
+  .results-count { font-family: 'Share Tech Mono', monospace; font-size: 0.7rem; color: var(--green); background: var(--green-glow); border: 1px solid var(--green-dim); padding: 2px 10px; }
+  .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; max-height: 180px; overflow-y: auto; }
+  .result-card {
+    background: var(--panel); border: 1px solid var(--border); padding: 10px 12px;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.68rem; color: var(--gray);
+    transition: all 0.15s; cursor: default; position: relative; overflow: hidden;
+    line-height: 1.5; word-break: break-word;
+  }
+  .result-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--green-dim); transition: background 0.15s; }
+  .result-card:hover { border-color: var(--slate-light); color: var(--white); }
+  .result-card:hover::before { background: var(--green); }
+  .export-row {
+    display: flex; align-items: center; gap: 10px; padding: 16px 28px;
+    border-top: 1px solid var(--border); background: var(--dark);
+    position: relative; z-index: 1; flex-wrap: wrap;
+  }
+  .export-label { font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: var(--gray-dim); letter-spacing: 0.1em; margin-right: 4px; }
+  .export-btn {
+    font-family: 'Share Tech Mono', monospace; font-size: 0.68rem; padding: 7px 16px;
+    background: transparent; border: 1px solid var(--border); color: var(--gray);
+    cursor: pointer; transition: all 0.15s; letter-spacing: 0.08em;
+  }
+  .export-btn:hover { border-color: var(--green); color: var(--green); background: var(--green-glow); box-shadow: 0 0 8px var(--green-glow); }
+  .export-btn.active-fmt { border-color: var(--green); color: var(--green); background: var(--green-glow); }
+  .hero-area { padding: 28px 28px 16px; position: relative; z-index: 1; border-bottom: 1px solid var(--border); }
+  .hero-title {
+    font-family: 'Syncopate', sans-serif; font-weight: 700;
+    font-size: clamp(2rem, 4vw, 3.2rem); letter-spacing: 0.12em; line-height: 1;
+    color: var(--white); position: relative; display: inline-block;
+  }
+  .hero-title::before {
+    content: 'SCRAPEGOAT'; position: absolute; left: 3px; top: 0;
+    color: var(--red); clip-path: polygon(0 15%, 100% 15%, 100% 40%, 0 40%);
+    opacity: 0; animation: titleGlitch 7s infinite;
+  }
+  .hero-title::after {
+    content: 'SCRAPEGOAT'; position: absolute; left: -3px; top: 0;
+    color: var(--green); clip-path: polygon(0 60%, 100% 60%, 100% 80%, 0 80%);
+    opacity: 0; animation: titleGlitch 7s 0.08s infinite;
+  }
+  @keyframes titleGlitch {
+    0%, 90%, 100% { opacity: 0; }
+    91% { opacity: 0.9; transform: translateX(-4px) skewX(-2deg); }
+    92% { opacity: 0; }
+    93% { opacity: 0.7; transform: translateX(4px); }
+    94% { opacity: 0; }
+  }
+  .hero-sub { font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: var(--gray-dim); letter-spacing: 0.15em; margin-top: 6px; }
+  .hero-sub span { color: var(--green); }
+  .stat-row { display: flex; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+  .stat-badge { border: 1px solid var(--border); padding: 6px 14px; display: flex; flex-direction: column; gap: 2px; background: var(--panel); }
+  .stat-val { font-family: 'Syncopate', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--green); text-shadow: 0 0 8px var(--green); }
+  .stat-key { font-family: 'Share Tech Mono', monospace; font-size: 0.55rem; color: var(--gray-dim); letter-spacing: 0.12em; }
+  .method-info { font-family: 'Share Tech Mono', monospace; font-size: 0.62rem; color: var(--gray-dim); margin-top: 8px; padding: 6px 10px; border-left: 2px solid var(--slate); background: var(--panel); line-height: 1.5; }
+  .progress-bar-wrap { height: 2px; background: var(--border); width: 100%; display: none; position: relative; z-index: 1; }
+  .progress-bar-wrap.active { display: block; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green), var(--accent)); box-shadow: 0 0 8px var(--green); width: 0%; transition: width 0.3s ease; }
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; gap: 16px; color: var(--gray-dim); font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; letter-spacing: 0.1em; }
+  .empty-state svg { opacity: 0.2; animation: floatGoat 3s ease-in-out infinite; }
+  @keyframes floatGoat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--dark); }
+  ::-webkit-scrollbar-thumb { background: var(--slate); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
+  @media (max-width: 780px) {
+    .app-shell { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+  .glitch-row { animation: rowGlitch 8s infinite; }
+  @keyframes rowGlitch {
+    0%, 97%, 100% { opacity: 1; transform: none; }
+    97.5% { opacity: 0.7; transform: translateX(3px); }
+    98% { opacity: 1; transform: none; }
+  }
+  .session-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.62rem;
+    padding: 3px 8px; border: 1px solid var(--slate); background: var(--panel);
+    color: var(--gray); cursor: pointer; transition: all 0.15s; margin: 2px;
+  }
+  .session-pill:hover { border-color: var(--red); color: var(--red); }
+  .session-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); box-shadow: 0 0 4px var(--green); }
+  textarea { resize: vertical; min-height: 52px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <div class="logo-wrap">
+    <div class="logo-icon">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 4 C10 4 6 9 6 14 C6 18 8 21 12 23 L10 28 L16 25 L22 28 L20 23 C24 21 26 18 26 14 C26 9 22 4 16 4Z" stroke="#39d353" stroke-width="1.2" fill="none"/>
+        <path d="M12 12 C12 10 14 9 16 9 C18 9 20 10 20 12" stroke="#39d353" stroke-width="1" fill="none"/>
+        <circle cx="13" cy="13" r="1.2" fill="#39d353"/>
+        <circle cx="19" cy="13" r="1.2" fill="#39d353"/>
+        <path d="M10 8 L8 5 M22 8 L24 5" stroke="#39d353" stroke-width="1" stroke-linecap="round"/>
+        <path d="M13 17 L16 19 L19 17" stroke="#39d353" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <span class="logo-text">ScrapeGoat</span>
+    <span class="version-tag">v2.1</span>
+  </div>
+  <div class="topbar-status">
+    <span id="backendStatus"><span class="status-dot offline" id="statusDot"></span><span id="statusText">CONNECTING...</span></span>
+    <span id="clock" style="color:var(--gray-dim)">--:--:--</span>
+  </div>
+</nav>
+
+<div class="app-shell">
+  <!-- ═══ SIDEBAR ══════════════════════════════════════════════════════════ -->
+  <aside class="sidebar">
+
+    <!-- TARGET URL -->
+    <div class="sidebar-section">
+      <div class="section-label">target</div>
+      <div class="url-input-wrap">
+        <span class="prefix">URL</span>
+        <input type="text" class="url-input" id="urlInput" placeholder="https://target.io" />
+      </div>
+    </div>
+
+    <!-- ENGINE -->
+    <div class="sidebar-section">
+      <div class="section-label">engine</div>
+      <div class="toggle-group">
+        <input type="radio" name="engine" id="e-fetcher" value="fetcher" checked />
+        <label for="e-fetcher">Fetcher</label>
+        <input type="radio" name="engine" id="e-stealth" value="stealth" />
+        <label for="e-stealth">Stealth</label>
+        <input type="radio" name="engine" id="e-dynamic" value="dynamic" />
+        <label for="e-dynamic">Dynamic</label>
+      </div>
+      <div class="method-info" id="engineInfo">
+        Fast HTTP + TLS fingerprint impersonation. Best for static pages.
+      </div>
+      <!-- Browser Profile (hidden for dynamic) -->
+      <div id="profileWrap" style="margin-top:10px">
+        <span class="small-label">BROWSER PROFILE</span>
+        <div class="select-wrap">
+          <select id="profileSelect">
+            <option value="chrome_win">Chrome / Windows</option>
+            <option value="chrome_mac">Chrome / macOS</option>
+            <option value="firefox_win">Firefox / Windows</option>
+            <option value="safari_mac">Safari / macOS</option>
+            <option value="edge_win">Edge / Windows</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- TARGET TAGS -->
+    <div class="sidebar-section">
+      <div class="section-label">target tags</div>
+      <div class="tags-grid">
+        <label class="tag-check"><input type="checkbox" id="tag-p" checked /><span class="check-box"></span><span>&lt;p&gt;</span></label>
+        <label class="tag-check"><input type="checkbox" id="tag-h1" /><span class="check-box"></span><span>&lt;h1&gt;</span></label>
+        <label class="tag-check"><input type="checkbox" id="tag-h2" /><span class="check-box"></span><span>&lt;h2&gt;</span></label>
+        <label class="tag-check"><input type="checkbox" id="tag-div" /><span class="check-box"></span><span>&lt;div&gt;</span></label>
+        <label class="tag-check"><input type="checkbox" id="tag-a" /><span class="check-box"></span><span>&lt;a&gt;</span></label>
+        <label class="tag-check"><input type="checkbox" id="tag-class" /><span class="check-box"></span><span>.class</span></label>
+        <label class="tag-check"><input type="checkbox" id="tag-id" /><span class="check-box"></span><span>#id</span></label>
+        <label class="tag-check"><input type="checkbox" id="tag-td" /><span class="check-box"></span><span>&lt;td&gt;</span></label>
+        <label class="tag-check"><input type="checkbox" id="tag-tr" /><span class="check-box"></span><span>&lt;tr&gt;</span></label>
+      </div>
+    </div>
+
+    <!-- SELECTOR -->
+    <div class="sidebar-section">
+      <div class="section-label">selector</div>
+      <div class="select-wrap">
+        <select id="findBy">
+          <option>By.CLASS_NAME</option>
+          <option>By.CSS_SELECTOR</option>
+          <option>By.ID</option>
+          <option>By.LINK_TEXT</option>
+          <option>By.NAME</option>
+          <option>By.PARTIAL_LINK_TEXT</option>
+          <option>By.TAG_NAME</option>
+        </select>
+      </div>
+      <input type="text" id="exprInput" placeholder="expression / selector…" style="margin-top:8px"/>
+    </div>
+
+    <!-- SESSION -->
+    <div class="sidebar-section">
+      <div class="section-label">session</div>
+      <span class="small-label">SESSION ID (leave blank for stateless)</span>
+      <div class="input-row">
+        <input type="text" id="sessionId" placeholder="my-session-01" />
+        <button class="mini-btn" onclick="genSession()">GEN</button>
+        <button class="mini-btn danger" onclick="clearSession()">CLR</button>
+      </div>
+      <div id="activeSessions" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px"></div>
+    </div>
+
+    <!-- PROXY ROTATION -->
+    <div class="sidebar-section">
+      <div class="section-label">proxy rotation</div>
+      <span class="small-label">STRATEGY</span>
+      <div class="toggle-group" style="margin-bottom:10px">
+        <input type="radio" name="proxystrat" id="ps-cyclic" value="cyclic" checked />
+        <label for="ps-cyclic">Cyclic</label>
+        <input type="radio" name="proxystrat" id="ps-random" value="random" />
+        <label for="ps-random">Random</label>
+      </div>
+      <span class="small-label">ADD PROXY  (http://host:port  or  http://user:pass@host:port)</span>
+      <div class="input-row">
+        <input type="text" id="proxyInput" placeholder="http://proxy:8080" />
+        <button class="mini-btn" onclick="addProxy()">ADD</button>
+      </div>
+      <span class="small-label" style="margin-top:8px">PER-REQUEST OVERRIDE</span>
+      <input type="text" id="proxyOverride" placeholder="optional single proxy…" />
+      <div class="proxy-list" id="proxyList"><span style="color:var(--gray-dim)">// no proxies loaded</span></div>
+    </div>
+
+    <!-- DOMAIN BLOCKING -->
+    <div class="sidebar-section">
+      <div class="section-label">domain blocking</div>
+      <span class="small-label">BLOCK DOMAIN (+ all subdomains)</span>
+      <div class="input-row">
+        <input type="text" id="blockInput" placeholder="ads.example.com" />
+        <button class="mini-btn" onclick="addBlock()">BLOCK</button>
+      </div>
+      <div id="blockedList" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px"></div>
+    </div>
+
+  </aside>
+
+  <!-- ═══ MAIN ═════════════════════════════════════════════════════════════ -->
+  <main class="main-panel">
+    <!-- HERO -->
+    <div class="hero-area">
+      <div class="hero-title">SCRAPEGOAT</div>
+      <div class="hero-sub">// web data extraction terminal &nbsp;<span id="heroEngine">[ fetcher ]</span></div>
+      <div class="stat-row">
+        <div class="stat-badge"><span class="stat-val" id="statItems">0</span><span class="stat-key">ITEMS SCRAPED</span></div>
+        <div class="stat-badge"><span class="stat-val" id="statTime">0ms</span><span class="stat-key">PARSE TIME</span></div>
+        <div class="stat-badge"><span class="stat-val" id="statTags">1</span><span class="stat-key">ACTIVE TAGS</span></div>
+        <div class="stat-badge"><span class="stat-val" id="statProxies">0</span><span class="stat-key">PROXIES</span></div>
+        <div class="stat-badge"><span class="stat-val" id="statSessions">0</span><span class="stat-key">SESSIONS</span></div>
+      </div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="progress-bar-wrap" id="progressWrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- CONTROLS ROW -->
+    <div class="main-controls">
+      <div class="expr-wrap">
+        <span class="expr-prefix" id="exprPrefixDisplay">BY.CLASS_NAME</span>
+        <input type="text" class="expr-input" id="exprDisplay" placeholder="expression mirrors sidebar →" readonly/>
+      </div>
+      <button class="scrape-btn" id="scrapeBtn" onclick="runScrape()">
+        <span id="btnLabel">⟩ EXECUTE</span>
+      </button>
+    </div>
+
+    <!-- TABS -->
+    <div class="output-tabs">
+      <div class="output-tab active" onclick="switchTab('terminal', this)">TERMINAL</div>
+      <div class="output-tab" onclick="switchTab('results', this)">RAW DATA</div>
+    </div>
+
+    <!-- TERMINAL -->
+    <div class="terminal" id="terminalView">
+      <div class="terminal-line glitch-row">
+        <span class="t-prompt">❯</span>
+        <span class="t-dim">ScrapeGoat v2.1 — backend engine active. Awaiting target URL...</span>
+      </div>
+      <div class="terminal-line">
+        <span class="t-prompt">❯</span>
+        <span class="t-meta">Engines: <span class="t-success">Fetcher</span> · <span class="t-success">StealthyFetcher</span> · <span class="t-success">DynamicFetcher (Playwright)</span></span>
+      </div>
+      <div class="terminal-line">
+        <span class="t-prompt">❯</span>
+        <span class="t-dim">Features: TLS fingerprint · session cookies · proxy rotation · domain blocking · async</span>
+      </div>
+      <div class="terminal-line">
+        <span class="t-prompt">_</span><span class="t-cursor"></span>
+      </div>
+    </div>
+
+    <!-- RESULTS VIEW -->
+    <div class="terminal" id="resultsView" style="display:none">
+      <div class="empty-state" id="emptyState">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+          <path d="M24 6C15 6 9 14 9 22C9 28 12 33 18 36L15 42L24 38L33 42L30 36C36 33 39 28 39 22C39 14 33 6 24 6Z" stroke="#39d353" stroke-width="1.5" fill="none"/>
+          <circle cx="19" cy="20" r="2" fill="#39d353"/>
+          <circle cx="29" cy="20" r="2" fill="#39d353"/>
+        </svg>
+        <span>// no data yet — execute a scrape to populate</span>
+      </div>
+      <div class="results-grid" id="resultsGrid" style="display:none"></div>
+    </div>
+
+    <!-- RESULTS FOOTER -->
+    <div class="results-panel" id="resultsFooter" style="display:none">
+      <div class="results-header">
+        <span class="results-title">EXTRACTED PAYLOAD</span>
+        <span class="results-count" id="resultCount">0 items</span>
+      </div>
+    </div>
+
+    <!-- EXPORT BAR -->
+    <div class="export-row">
+      <span class="export-label">EXPORT //</span>
+      <button class="export-btn active-fmt" id="fmt-csv"   onclick="setFormat('CSV',   this)">CSV</button>
+      <button class="export-btn"            id="fmt-json"  onclick="setFormat('JSON',  this)">JSON</button>
+      <button class="export-btn"            id="fmt-excel" onclick="setFormat('EXCEL', this)">XLSX</button>
+      <button class="export-btn"            id="fmt-sql"   onclick="setFormat('SQL',   this)">SQL</button>
+      <button class="export-btn" onclick="downloadData()" style="margin-left:auto;border-color:var(--slate-light);color:var(--gray)">⬇ DOWNLOAD</button>
+    </div>
+  </main>
+</div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const API = 'http://localhost:7331';
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let scrapedData   = [];
+let currentFormat = 'CSV';
+let currentTab    = 'terminal';
+let proxyList     = [];
+let blockedDomains= [];
+
+// ─── CLOCK ────────────────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toTimeString().slice(0, 8);
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── BACKEND HEALTH CHECK ─────────────────────────────────────────────────────
+async function checkBackend() {
+  try {
+    const r = await fetch(`${API}/api/health`, { signal: AbortSignal.timeout(2000) });
+    const ok = r.ok;
+    document.getElementById('statusDot').className  = `status-dot${ok ? '' : ' offline'}`;
+    document.getElementById('statusText').textContent = ok ? 'BACKEND ONLINE' : 'BACKEND OFFLINE';
+    if (ok) refreshSessions();
+  } catch {
+    document.getElementById('statusDot').className  = 'status-dot offline';
+    document.getElementById('statusText').textContent = 'BACKEND OFFLINE';
+  }
+}
+setInterval(checkBackend, 4000);
+checkBackend();
+
+// ─── ENGINE INFO TEXT ─────────────────────────────────────────────────────────
+const ENGINE_INFO = {
+  fetcher:  'Fast HTTP + TLS fingerprint impersonation. Supports all browser profiles. Best for static pages.',
+  stealth:  'Anti-bot evasion: rotating UA, header shuffle, timing jitter, spoofed IP headers. Bypasses basic bot detection.',
+  dynamic:  'Full Playwright Chromium browser. JS rendering, stealth scripts, cookie sessions, domain-level network blocking.',
+};
+
+document.querySelectorAll('input[name="engine"]').forEach(r => {
+  r.addEventListener('change', () => {
+    document.getElementById('engineInfo').textContent = ENGINE_INFO[r.value];
+    document.getElementById('heroEngine').textContent = `[ ${r.value} ]`;
+    document.getElementById('profileWrap').style.display = r.value === 'dynamic' ? 'none' : 'block';
+  });
+});
+
+// ─── SIDEBAR → MAIN SYNC ─────────────────────────────────────────────────────
+document.getElementById('findBy').addEventListener('change', e => {
+  document.getElementById('exprPrefixDisplay').textContent = e.target.value.toUpperCase();
+});
+document.getElementById('exprInput').addEventListener('input', e => {
+  document.getElementById('exprDisplay').value = e.target.value;
+});
+document.querySelectorAll('.tags-grid input[type=checkbox]').forEach(cb => {
+  cb.addEventListener('change', updateTagCount);
+});
+function updateTagCount() {
+  const n = [...document.querySelectorAll('.tags-grid input[type=checkbox]')].filter(c => c.checked).length;
+  document.getElementById('statTags').textContent = n;
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(tab, el) {
+  document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentTab = tab;
+  document.getElementById('terminalView').style.display = tab === 'terminal' ? 'block' : 'none';
+  document.getElementById('resultsView').style.display  = tab === 'results'  ? 'block' : 'none';
+}
+
+// ─── FORMAT ───────────────────────────────────────────────────────────────────
+function setFormat(fmt, el) {
+  currentFormat = fmt;
+  document.querySelectorAll('.export-btn').forEach(b => b.classList.remove('active-fmt'));
+  el.classList.add('active-fmt');
+}
+
+// ─── TERMINAL ─────────────────────────────────────────────────────────────────
+function tlog(text, cls = 't-text', prompt = '❯') {
+  const terminal = document.getElementById('terminalView');
+  const last = terminal.querySelector('.terminal-line:last-child');
+  if (last) last.remove();
+  const line = document.createElement('div');
+  line.className = 'terminal-line';
+  line.innerHTML = `<span class="t-prompt">${prompt}</span><span class="${cls}">${text}</span>`;
+  terminal.appendChild(line);
+  const cur = document.createElement('div');
+  cur.className = 'terminal-line';
+  cur.innerHTML = `<span class="t-prompt">_</span><span class="t-cursor"></span>`;
+  terminal.appendChild(cur);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+// Replay backend log array into terminal
+function replayLogs(logs) {
+  const MAP = { success: 't-success', error: 't-error', warn: 't-warn', info: 't-dim' };
+  for (const entry of logs) {
+    tlog(entry.msg, MAP[entry.level] || 't-text');
+  }
+}
+
+// ─── PROGRESS ─────────────────────────────────────────────────────────────────
+async function animateProgress(pct, delay = 0) {
+  return new Promise(res => setTimeout(() => {
+    document.getElementById('progressBar').style.width = pct + '%';
+    setTimeout(res, 200);
+  }, delay));
+}
+
+// ─── SESSION MANAGEMENT ───────────────────────────────────────────────────────
+function genSession() {
+  const id = 'sess-' + Math.random().toString(36).slice(2, 8);
+  document.getElementById('sessionId').value = id;
+  tlog(`Session ID generated: <span class="t-data">${id}</span>`);
+}
+
+async function clearSession() {
+  const sid = document.getElementById('sessionId').value.trim();
+  try {
+    await fetch(`${API}/api/sessions/clear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sid ? { session_id: sid } : {}),
+    });
+    tlog(sid ? `Session cleared: <span class="t-warn">${sid}</span>` : 'All sessions cleared', 't-warn');
+    if (sid) document.getElementById('sessionId').value = '';
+    refreshSessions();
+  } catch { tlog('Backend unreachable', 't-error'); }
+}
+
+async function refreshSessions() {
+  try {
+    const r = await fetch(`${API}/api/sessions`);
+    const d = await r.json();
+    const wrap = document.getElementById('activeSessions');
+    wrap.innerHTML = '';
+    for (const sid of (d.sessions || [])) {
+      const pill = document.createElement('div');
+      pill.className = 'session-pill';
+      pill.title = 'Click to select';
+      pill.innerHTML = `<span class="dot"></span>${sid}`;
+      pill.onclick = () => { document.getElementById('sessionId').value = sid; };
+      wrap.appendChild(pill);
+    }
+    document.getElementById('statSessions').textContent = (d.sessions || []).length;
+  } catch {}
+}
+
+// ─── PROXY MANAGEMENT ─────────────────────────────────────────────────────────
+function addProxy() {
+  const val = document.getElementById('proxyInput').value.trim();
+  if (!val) return;
+  if (!proxyList.includes(val)) {
+    proxyList.push(val);
+    renderProxyList();
+    pushProxiesToBackend();
+  }
+  document.getElementById('proxyInput').value = '';
+}
+
+function removeProxy(p) {
+  proxyList = proxyList.filter(x => x !== p);
+  renderProxyList();
+  pushProxiesToBackend();
+}
+
+function renderProxyList() {
+  const el = document.getElementById('proxyList');
+  document.getElementById('statProxies').textContent = proxyList.length;
+  if (!proxyList.length) {
+    el.innerHTML = '<span style="color:var(--gray-dim)">// no proxies loaded</span>';
+    return;
+  }
+  el.innerHTML = proxyList.map(p =>
+    `<div class="proxy-item">
+       <span>${p}</span>
+       <span class="proxy-remove" onclick="removeProxy('${p}')">✕</span>
+     </div>`
+  ).join('');
+}
+
+async function pushProxiesToBackend() {
+  const strategy = document.querySelector('input[name="proxystrat"]:checked').value;
+  try {
+    await fetch(`${API}/api/proxies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proxies: proxyList, strategy }),
+    });
+    tlog(`Proxy rotator updated: <span class="t-data">${proxyList.length} proxies</span> [${strategy}]`, 't-meta');
+  } catch { tlog('Backend unreachable — proxy config not pushed', 't-warn'); }
+}
+
+document.querySelectorAll('input[name="proxystrat"]').forEach(r => {
+  r.addEventListener('change', () => { if (proxyList.length) pushProxiesToBackend(); });
+});
+
+// ─── DOMAIN BLOCKING ──────────────────────────────────────────────────────────
+function addBlock() {
+  const val = document.getElementById('blockInput').value.trim().toLowerCase();
+  if (!val || blockedDomains.includes(val)) return;
+  blockedDomains.push(val);
+  renderBlockedList();
+  document.getElementById('blockInput').value = '';
+  tlog(`Domain blocked: <span class="t-warn">${val}</span>`, 't-warn');
+}
+
+function removeBlock(d) {
+  blockedDomains = blockedDomains.filter(x => x !== d);
+  renderBlockedList();
+}
+
+function renderBlockedList() {
+  const el = document.getElementById('blockedList');
+  el.innerHTML = blockedDomains.map(d =>
+    `<span class="badge badge-red" style="cursor:pointer" onclick="removeBlock('${d}')" title="Click to unblock">${d} ✕</span>`
+  ).join('');
+}
+
+// ─── MAIN SCRAPE ─────────────────────────────────────────────────────────────
+async function runScrape() {
+  const url       = document.getElementById('urlInput').value.trim();
+  const engine    = document.querySelector('input[name="engine"]:checked').value;
+  const profile   = document.getElementById('profileSelect').value;
+  const selMethod = document.getElementById('findBy').value;
+  const selExpr   = document.getElementById('exprInput').value.trim();
+  const sessionId = document.getElementById('sessionId').value.trim() || null;
+  const proxy     = document.getElementById('proxyOverride').value.trim() || null;
+
+  const tags = [...document.querySelectorAll('.tags-grid input[type=checkbox]')]
+    .filter(c => c.checked).map(c => c.id.replace('tag-', ''));
+
+  if (!url) { tlog('ERROR: No target URL specified.', 't-error'); return; }
+
+  const btn = document.getElementById('scrapeBtn');
+  const lbl = document.getElementById('btnLabel');
+  btn.classList.add('loading');
+  lbl.textContent = '⟳ RUNNING';
+  document.getElementById('progressWrap').classList.add('active');
+
+  const t0 = Date.now();
+  tlog(`Initiating scrape → <span style="color:#7ecfff">${url}</span>`);
+  await animateProgress(15, 100);
+  tlog(`Engine: <span class="t-success">${engine}</span>  Profile: <span class="t-data">${engine === 'dynamic' ? 'playwright_chromium' : profile}</span>`);
+  if (sessionId) tlog(`Session: <span class="t-data">${sessionId}</span>`);
+  if (proxy)     tlog(`Proxy override: <span class="t-warn">${proxy}</span>`, 't-warn');
+  if (blockedDomains.length) tlog(`Blocking: <span class="t-warn">${blockedDomains.join(', ')}</span>`, 't-warn');
+  await animateProgress(30, 200);
+
+  const payload = {
+    url, engine, profile, tags,
+    selector_method: selMethod,
+    selector_expr:   selExpr,
+    session_id:      sessionId,
+    proxy:           proxy,
+    blocked_domains: blockedDomains,
+  };
+
+  tlog('Sending to backend engine...');
+  await animateProgress(45, 200);
+
+  let result;
+  try {
+    const resp = await fetch(`${API}/api/scrape`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    await animateProgress(75, 300);
+    result = await resp.json();
+  } catch (err) {
+    await animateProgress(100, 100);
+    tlog(`NETWORK ERROR: ${err.message}`, 't-error');
+    tlog('Is the backend running?  →  python3 server.py', 't-warn');
+    resetBtn(btn, lbl);
+    return;
+  }
+
+  // Replay backend logs
+  if (result.logs) replayLogs(result.logs);
+
+  if (!result.ok) {
+    tlog(`SCRAPE FAILED: ${result.error}`, 't-error');
+    await animateProgress(100, 100);
+    resetBtn(btn, lbl);
+    return;
+  }
+
+  const items = result.items || [];
+  scrapedData = items;
+
+  items.slice(0, 5).forEach((item, i) => {
+    tlog(`[${String(i).padStart(3,'0')}] ${item.slice(0, 90)}${item.length > 90 ? '…' : ''}`, 't-data', '  ');
+  });
+  if (items.length > 5) tlog(`... and ${items.length - 5} more items`, 't-dim');
+  tlog(`Scrape complete. ✓  ${result.elapsed_ms}ms  [${result.engine}]`, 't-success');
+
+  document.getElementById('statItems').textContent = items.length;
+  document.getElementById('statTime').textContent  = (result.elapsed_ms || (Date.now() - t0)) + 'ms';
+
+  await animateProgress(100, 100);
+  renderResults(items);
+  if (sessionId) refreshSessions();
+
+  setTimeout(() => {
+    document.getElementById('progressWrap').classList.remove('active');
+    document.getElementById('progressBar').style.width = '0%';
+  }, 1400);
+
+  resetBtn(btn, lbl);
+}
+
+function resetBtn(btn, lbl) {
+  btn.classList.remove('loading');
+  lbl.textContent = '⟩ EXECUTE';
+}
+
+// ─── RENDER RESULTS ───────────────────────────────────────────────────────────
+function renderResults(data) {
+  const grid   = document.getElementById('resultsGrid');
+  const empty  = document.getElementById('emptyState');
+  const footer = document.getElementById('resultsFooter');
+  const count  = document.getElementById('resultCount');
+  grid.innerHTML = '';
+  if (!data.length) {
+    empty.style.display  = 'flex';
+    grid.style.display   = 'none';
+    footer.style.display = 'none';
+    return;
+  }
+  empty.style.display  = 'none';
+  grid.style.display   = 'grid';
+  footer.style.display = 'block';
+  count.textContent = `${data.length} items`;
+  data.slice(0, 80).forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.textContent = item.slice(0, 120) + (item.length > 120 ? '…' : '');
+    card.title = item;
+    grid.appendChild(card);
+  });
+}
+
+// ─── DOWNLOAD ─────────────────────────────────────────────────────────────────
+function downloadData() {
+  if (!scrapedData.length) { tlog('No data to export. Run a scrape first.', 't-warn'); return; }
+  let blob, filename;
+  if (currentFormat === 'CSV') {
+    blob = new Blob(['Data\n' + scrapedData.map(d => `"${d.replace(/"/g,'""')}"`).join('\n')], { type: 'text/csv' });
+    filename = 'scrapegoat-export.csv';
+  } else if (currentFormat === 'JSON') {
+    blob = new Blob([JSON.stringify(scrapedData, null, 2)], { type: 'application/json' });
+    filename = 'scrapegoat-export.json';
+  } else if (currentFormat === 'EXCEL') {
+    blob = new Blob(['Data\n' + scrapedData.map(d => d.replace(/\t/g,' ')).join('\n')], { type: 'text/tab-separated-values' });
+    filename = 'scrapegoat-export.tsv';
+  } else if (currentFormat === 'SQL') {
+    const rows = scrapedData.map(d => `  ('${d.replace(/'/g,"''")}')` ).join(',\n');
+    blob = new Blob([`CREATE TABLE IF NOT EXISTS scraped_data (data TEXT);\nINSERT INTO scraped_data (data) VALUES\n${rows};`], { type: 'text/plain' });
+    filename = 'scrapegoat-export.sql';
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  tlog(`Exported ${scrapedData.length} items → <span class="t-success">${filename}</span>`);
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
+updateTagCount();
+</script>
+</body>
+</html>
