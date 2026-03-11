@@ -8,6 +8,12 @@ ScrapeGoat is a full-stack web scraper with a tech-noir terminal UI. The fronten
 
 No framework. No build step. One command to run.
 
+![Version](https://img.shields.io/badge/version-2.1-33ffff?style=flat-square)
+![Python](https://img.shields.io/badge/python-3.10+-5D81FF?style=flat-square)
+![React](https://img.shields.io/badge/BS4-4.12.0-884dff?style=flat-square)
+![Playwright](https://img.shields.io/badge/playwright-1.40.0-F0Fd02?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-F0F2F5?style=flat-square)
+
 ---
 
 ## Engines
