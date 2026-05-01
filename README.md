@@ -1,4 +1,4 @@
-<img width="1280" height="590" alt="ScrapeGoat_Home" src="https://github.com/user-attachments/assets/0adb0430-9d38-4cdb-9ff5-0851e83838cb" />
+![ScrapeGoat](./banner.svg)
 
 # 🐐 ScrapeGoat
 
